@@ -47,6 +47,8 @@ int main(int argc, char* argv[])
 
 	std::cout << oss.str() << std::endl;
 
+	recipe_book new_book = serializer.deserialize(document);
+
 	return 0;
 }
 

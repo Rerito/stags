@@ -80,6 +80,54 @@ namespace stags {
 	}
 
 	template<typename T>
+	void read_node(pugi::xml_node &node, std::vector<T> &value) {
+		std::string element_name = class_info<T>().name;
+
+		pugi::xpath_node_set nodes = node.select_nodes(element_name.c_str());
+		value.reserve(nodes.size());
+		for (pugi::xpath_node_set::const_iterator iter = nodes.begin(), end = nodes.end(); iter != end; ++iter)
+		{
+			value.push_back(T());
+			read_node(iter->node(), value.back());
+		}
+	}
+
+	template<typename T>
+	void read_node(pugi::xml_node &node, T &value) {
+		typedef T *type;
+		std::vector<field_info_type<T>> fields;
+		fields.push_back(field_info(type(), ov_tag<1>()));
+		fields.push_back(field_info(type(), ov_tag<2>()));
+		fields.push_back(field_info(type(), ov_tag<3>()));
+		fields.push_back(field_info(type(), ov_tag<4>()));
+		fields.push_back(field_info(type(), ov_tag<5>()));
+		fields.push_back(field_info(type(), ov_tag<6>()));
+		fields.push_back(field_info(type(), ov_tag<7>()));
+		fields.push_back(field_info(type(), ov_tag<8>()));
+		fields.push_back(field_info(type(), ov_tag<9>()));
+
+		for (std::vector<field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
+			iter->deserialize_member(value, node);
+	}
+
+	void read_node(pugi::xml_node &node, std::string &value) {
+		value = node.text().as_string();
+	}
+
+	void read_node(pugi::xml_node &node, unsigned int &value) {
+		value = node.text().as_uint();
+	}
+
+	template<typename T>
+	void read_attr(pugi::xml_attribute &attr, T &value) {
+
+	}
+
+	void read_attr(pugi::xml_attribute &attr, unsigned int &value) {
+		value = attr.as_uint();
+	}
+
+	template<typename T>
 	void fill_node(pugi::xml_node &node, std::vector<T> const &value) {
 		std::string element_name = class_info<T>().name;
 		for (std::vector<T>::const_iterator iter = value.begin(), end = value.end(); iter != end; ++iter)
@@ -162,9 +210,28 @@ namespace stags {
 		}
 	}
 
+	template<typename T>
+	void deserialize_field(pugi::xml_node &parent, T &field, std::string name, xml_method method) {
+		if (method == xml_method_element)
+		{
+			pugi::xml_node node = parent.select_node(name.c_str()).node();
+			read_node(node, field);
+		}
+		else if (method == xml_method_attribute)
+		{
+			pugi::xml_attribute attr = parent.attribute(name.c_str());
+			read_attr(attr, field);
+		}
+		else if (method == xml_method_text)
+		{
+			read_node(parent, field);
+		}
+	}
+
 	template<typename C>
 	struct member_serializer_iface {
 		virtual void serialize_member(C const &object, pugi::xml_node &parent, std::string name, xml_method m) = 0;
+		virtual void deserialize_member(C &object, pugi::xml_node &parent, std::string name, xml_method m) = 0;
 	};
 
 	template<typename C, typename T>
@@ -172,8 +239,13 @@ namespace stags {
 		T C::*field;
 
 		member_serializer(T C::*f) : field(f) {}
+
 		virtual void serialize_member(C const &object, pugi::xml_node &parent, std::string name, xml_method method) {
 			serialize_field(parent, object.*field, name, method);
+		}
+
+		virtual void deserialize_member(C &object, pugi::xml_node &parent, std::string name, xml_method method) {
+			deserialize_field(parent, object.*field, name, method);
 		}
 	};
 
@@ -190,6 +262,10 @@ namespace stags {
 
 		void serialize_member(C const &object, pugi::xml_node &parent) const {
 			if (serializer) serializer->serialize_member(object, parent, name, method);
+		}
+
+		void deserialize_member(C &object, pugi::xml_node &parent) const {
+			if (serializer) serializer->deserialize_member(object, parent, name, method);
 		}
 
 		member_serializer_iface<C> *serializer;
@@ -231,12 +307,18 @@ namespace stags {
 			xml_serializer() {}
 
 			void serialize(pugi::xml_document &doc, RootElement const &object) {
-				using namespace stags;
-				typedef RootElement *type;
-				class_info_type info = class_info(type());
+				class_info_type info = class_info<RootElement>();
 
 				pugi::xml_node node = doc.root().append_child(info.name.c_str());
 				fill_node(node, object);
+			}
+
+			RootElement deserialize(pugi::xml_document &doc) {
+				class_info_type info = class_info<RootElement>();
+
+				RootElement object;
+				read_node(doc.root().select_node(info.name.c_str()).node(), object);
+				return object;
 			}
 		};
 
