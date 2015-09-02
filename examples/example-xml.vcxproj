@@ -81,6 +81,7 @@
     <ClCompile Include="thirdparty\pugixml\src\pugixml.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\stags\stags.hpp" />
     <ClInclude Include="..\stags\stags_xml.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
