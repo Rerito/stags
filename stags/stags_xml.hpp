@@ -4,6 +4,8 @@
 #include <vector>
 #include "pugixml.hpp"
 
+#include <boost/typeof/typeof.hpp>
+
 namespace stags {
 
     template<class T, int N> struct the_counter;
@@ -55,7 +57,7 @@ namespace stags {
 	}
 
 	template<typename MyT>
-	struct myt_base {
+	struct serializable {
 		typedef MyT myt_;
 	};
 
@@ -94,17 +96,7 @@ namespace stags {
 
 	template<typename T>
 	void read_node(pugi::xml_node &node, T &value) {
-		typedef T *type;
-		std::vector<field_info_type<T>> fields;
-		fields.push_back(field_info(type(), ov_tag<1>()));
-		fields.push_back(field_info(type(), ov_tag<2>()));
-		fields.push_back(field_info(type(), ov_tag<3>()));
-		fields.push_back(field_info(type(), ov_tag<4>()));
-		fields.push_back(field_info(type(), ov_tag<5>()));
-		fields.push_back(field_info(type(), ov_tag<6>()));
-		fields.push_back(field_info(type(), ov_tag<7>()));
-		fields.push_back(field_info(type(), ov_tag<8>()));
-		fields.push_back(field_info(type(), ov_tag<9>()));
+		std::vector<field_info_type<T>> fields = get_field_info<T>();
 
 		for (std::vector<field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 			iter->deserialize_member(value, node);
@@ -139,17 +131,7 @@ namespace stags {
 
 	template<typename T>
 	void fill_node(pugi::xml_node &node, T const &value) {
-		typedef T *type;
-		std::vector<field_info_type<T>> fields;
-		fields.push_back(field_info(type(), ov_tag<1>()));
-		fields.push_back(field_info(type(), ov_tag<2>()));
-		fields.push_back(field_info(type(), ov_tag<3>()));
-		fields.push_back(field_info(type(), ov_tag<4>()));
-		fields.push_back(field_info(type(), ov_tag<5>()));
-		fields.push_back(field_info(type(), ov_tag<6>()));
-		fields.push_back(field_info(type(), ov_tag<7>()));
-		fields.push_back(field_info(type(), ov_tag<8>()));
-		fields.push_back(field_info(type(), ov_tag<9>()));
+		std::vector<field_info_type<T>> fields = get_field_info<T>();
 
 		for (std::vector<field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 			iter->serialize_member(value, node);
@@ -281,12 +263,43 @@ namespace stags {
 	template<typename NoClass>
 	class_info_type class_info(NoClass*) { throw std::runtime_error("Not serializable"); }
 
+	struct no_field {};
 	template<typename NoClass, int NoTag>
-	field_info_type<NoClass> field_info(NoClass*, stags::ov_tag<NoTag>) { return field_info_type<NoClass>(); }
+	no_field field_info(NoClass*, stags::ov_tag<NoTag>) { return no_field(); }
+
+	template<typename Tag>
+	struct field_aggregator {
+		template<int N, typename T>
+		static void append_next_field(std::vector<field_info_type<T>> &fields) {
+			typedef T *type;
+			fields.push_back(field_info(type(), ov_tag<N>()));
+			append_field_maybe<N + 1>(fields);
+		}
+	};
+
+	template<>
+	struct field_aggregator < no_field > {
+		template<int N, typename T>
+		static void append_next_field(std::vector<field_info_type<T>> &fields) {}
+	};
+
+	template<int N, typename T>
+	void append_field_maybe(std::vector<field_info_type<T>> &fields) {
+		typedef T *type;
+		typedef BOOST_TYPEOF(field_info(type(), ov_tag<N>())) result_type;
+		field_aggregator<result_type>::append_next_field<N>(fields);
+	}
+
+	template<typename T>
+	std::vector<field_info_type<T>> get_field_info() {
+		std::vector<field_info_type<T>> info;
+		append_field_maybe<1>(info);
+		return info;
+	}
 
 } // stags
 
-#define XML_SERIALIZABLE_NAME(xn, tt, tn) tt tn; namespace stags { class_info_type class_info(tn*){ return class_info_type(xn); } } tt tn : private ::stags::myt_base<tn>
+#define XML_SERIALIZABLE_NAME(xn, tt, tn) tt tn; namespace stags { class_info_type class_info(tn*){ return class_info_type(xn); } } tt tn : private ::stags::serializable<tn>
 #define XML_SERIALIZABLE(tt, tn) XML_SERIALIZABLE_NAME(#tn, tt, tn)
 
 #define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_> field_info(myt_*, ::stags::ov_tag<::stags::encode_counter<myt_, __LINE__>::count>) { return ::stags::make_field_info<myt_, ct>(&myt_::cn, #cn, ::stags::xml_method_##st); }
