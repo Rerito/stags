@@ -96,9 +96,9 @@ namespace stags {
 
 	template<typename T>
 	void read_node(pugi::xml_node &node, T &value) {
-		std::vector<field_info_type<T>> fields = get_field_info<T>();
+		std::vector<any_field_info_type<T>> fields = get_field_info<T>();
 
-		for (std::vector<field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
+		for (std::vector<any_field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 			iter->deserialize_member(value, node);
 	}
 
@@ -131,9 +131,9 @@ namespace stags {
 
 	template<typename T>
 	void fill_node(pugi::xml_node &node, T const &value) {
-		std::vector<field_info_type<T>> fields = get_field_info<T>();
+		std::vector<any_field_info_type<T>> fields = get_field_info<T>();
 
-		for (std::vector<field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
+		for (std::vector<any_field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 			iter->serialize_member(value, node);
 	}
 
@@ -210,56 +210,55 @@ namespace stags {
 		}
 	}
 
-	template<typename C>
-	struct member_serializer_iface {
-		virtual void serialize_member(C const &object, pugi::xml_node &parent, std::string name, xml_method m) = 0;
-		virtual void deserialize_member(C &object, pugi::xml_node &parent, std::string name, xml_method m) = 0;
+	template<typename Parent, typename Member, int Method>
+	struct field_info_type {
+		std::string name;
+		Member Parent::*field;
+
+		field_info_type(std::string const &n, Member Parent::*f) : name(n), field(f) {}
 	};
 
-	template<typename C, typename T>
-	struct member_serializer : public member_serializer_iface<C> {
-		T C::*field;
-
-		member_serializer(T C::*f) : field(f) {}
-
-		virtual void serialize_member(C const &object, pugi::xml_node &parent, std::string name, xml_method method) {
-			serialize_field(parent, object.*field, name, method);
-		}
-
-		virtual void deserialize_member(C &object, pugi::xml_node &parent, std::string name, xml_method method) {
-			deserialize_field(parent, object.*field, name, method);
-		}
-	};
-
-
 	template<typename C>
-	class field_info_type {
+	class any_field_info_type {
+		struct iserializer {
+			virtual void serialize_member(C const &object, pugi::xml_node &parent) const = 0;
+			virtual void deserialize_member(C &object, pugi::xml_node &parent) const = 0;
+		};
+
+		template<typename Member, int Method>
+		struct field_serializer : public iserializer {
+			field_info_type<C, Member, Method> field_info;
+
+			field_serializer(field_info_type<C, Member, Method> const &fi) : field_info(fi) {}
+
+			void serialize_member(C const &object, pugi::xml_node &parent) const {
+				serialize_field(parent, object.*field_info.field, field_info.name, (stags::xml_method)Method);
+			}
+
+			void deserialize_member(C &object, pugi::xml_node &parent) const {
+				deserialize_field(parent, object.*field_info.field, field_info.name, (stags::xml_method)Method);
+			}
+		};
+
+		iserializer *serializer;
+
 	public:
-		field_info_type() : serializer() {}
+		any_field_info_type() : serializer() {}
 
-		template<typename T>
-		field_info_type(std::string n, T C::*field, xml_method m) : name(n), method(m) {
-			serializer = new member_serializer < C, T >(field);
+		template<typename Member, int Method>
+		any_field_info_type(field_info_type<C, Member, Method> const &info) {
+			serializer = new field_serializer<Member, Method>(info);
 		}
 
 		void serialize_member(C const &object, pugi::xml_node &parent) const {
-			if (serializer) serializer->serialize_member(object, parent, name, method);
+			serializer->serialize_member(object, parent);
 		}
 
 		void deserialize_member(C &object, pugi::xml_node &parent) const {
-			if (serializer) serializer->deserialize_member(object, parent, name, method);
+			serializer->deserialize_member(object, parent);
 		}
-
-		member_serializer_iface<C> *serializer;
-		std::string name;
-		xml_method method;
 	};
-
-	template<typename C, typename T>
-	field_info_type<C> make_field_info(T C::*field, std::string n, xml_method method) {
-		return field_info_type<C>(n, field, method);
-	}
-
+	
 	template<typename NoClass>
 	class_info_type class_info(NoClass*) { throw std::runtime_error("Not serializable"); }
 
@@ -270,7 +269,7 @@ namespace stags {
 	template<typename Tag>
 	struct field_aggregator {
 		template<int N, typename T>
-		static void append_next_field(std::vector<field_info_type<T>> &fields) {
+		static void append_next_field(std::vector<any_field_info_type<T>> &fields) {
 			typedef T *type;
 			fields.push_back(field_info(type(), ov_tag<N>()));
 			append_field_maybe<N + 1>(fields);
@@ -280,19 +279,19 @@ namespace stags {
 	template<>
 	struct field_aggregator < no_field > {
 		template<int N, typename T>
-		static void append_next_field(std::vector<field_info_type<T>> &fields) {}
+		static void append_next_field(std::vector<any_field_info_type<T>> &fields) {}
 	};
 
 	template<int N, typename T>
-	void append_field_maybe(std::vector<field_info_type<T>> &fields) {
+	void append_field_maybe(std::vector<any_field_info_type<T>> &fields) {
 		typedef T *type;
 		typedef BOOST_TYPEOF(field_info(type(), ov_tag<N>())) result_type;
 		field_aggregator<result_type>::append_next_field<N>(fields);
 	}
 
 	template<typename T>
-	std::vector<field_info_type<T>> get_field_info() {
-		std::vector<field_info_type<T>> info;
+	std::vector<any_field_info_type<T>> get_field_info() {
+		std::vector<any_field_info_type<T>> info;
 		append_field_maybe<1>(info);
 		return info;
 	}
@@ -302,7 +301,7 @@ namespace stags {
 #define XML_SERIALIZABLE_NAME(xn, tt, tn) tt tn; namespace stags { class_info_type class_info(tn*){ return class_info_type(xn); } } tt tn : private ::stags::serializable<tn>
 #define XML_SERIALIZABLE(tt, tn) XML_SERIALIZABLE_NAME(#tn, tt, tn)
 
-#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_> field_info(myt_*, ::stags::ov_tag<::stags::encode_counter<myt_, __LINE__>::count>) { return ::stags::make_field_info<myt_, ct>(&myt_::cn, #cn, ::stags::xml_method_##st); }
+#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_, ct, ::stags::xml_method_##st> field_info(myt_*, ::stags::ov_tag<::stags::encode_counter<myt_, __LINE__>::count>) { return ::stags::field_info_type<myt_, ct, ::stags::xml_method_##st>(xn, &myt_::cn); }
 
 #define XML_ELEMENT_NAME(xn, ct, cn)	P_XML_FIELD(xn, ct, cn, element)
 #define XML_ELEMENT(ct, cn)				P_XML_FIELD(#cn, ct, cn, element)
