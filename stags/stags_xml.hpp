@@ -64,22 +64,11 @@ namespace stags {
 	template<int N>
 	struct ov_tag {};
 
-	class class_info_type {
-	public:
-		class_info_type(std::string n) : name(n) {}
-		std::string name;
-	};
-
 	enum xml_method {
 		xml_method_element,
 		xml_method_attribute,
 		xml_method_text,
 	};
-
-	template<typename T>
-	class_info_type class_info() {
-		return class_info(static_cast<T*>(0));
-	}
 
 	template<typename T>
 	void read_node(pugi::xml_node &node, std::vector<T> &value) {
@@ -259,12 +248,26 @@ namespace stags {
 		}
 	};
 	
+	struct no_class_info {};
 	template<typename NoClass>
-	class_info_type class_info(NoClass*) { throw std::runtime_error("Not serializable"); }
+	no_class_info class_info(NoClass*) { throw; }
+
+	class class_info_type {
+	public:
+		class_info_type(std::string n) : name(n) {}
+		class_info_type(no_class_info) {}
+
+		std::string name;
+	};
+
+	template<typename T>
+	class_info_type class_info() {
+		return class_info(static_cast<T*>(0));
+	}
 
 	struct no_field {};
 	template<typename NoClass, int NoTag>
-	no_field field_info(NoClass*, stags::ov_tag<NoTag>) { return no_field(); }
+	no_field field_info(NoClass*, stags::ov_tag<NoTag>) { throw; }
 
 	template<typename Tag>
 	struct field_aggregator {
