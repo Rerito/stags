@@ -5,7 +5,6 @@
 #include "pugixml.hpp"
 
 #include <stags/stags.hpp>
-#include <boost/typeof/typeof.hpp>
 
 namespace stags {
 namespace xml {
@@ -245,7 +244,7 @@ public:
 #define XML_SERIALIZABLE_NAME(xn, tt, tn) tt tn; namespace stags { class_info_type class_info(tn*){ return class_info_type(xn); } } tt tn : private ::stags::serializable<tn>
 #define XML_SERIALIZABLE(tt, tn) XML_SERIALIZABLE_NAME(#tn, tt, tn)
 
-#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st> field_info(myt_*, ::stags::ov_tag<::stags::encode_counter<myt_, __LINE__>::count>) { return ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st>(xn, &myt_::cn); }
+#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st> field_info(myt_*, ::stags::ov_tag<STAGS_NEXT_ID(myt_)>) { return ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st>(xn, &myt_::cn); }
 
 #define XML_ELEMENT_NAME(xn, ct, cn)	P_XML_FIELD(xn, ct, cn, element)
 #define XML_ELEMENT(ct, cn)				P_XML_FIELD(#cn, ct, cn, element)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/typeof/typeof.hpp>
+
 namespace stags {
 
 template<class T, int N> struct the_counter;
@@ -82,5 +84,50 @@ class_info_type class_info() {
 struct no_field {};
 template<typename NoClass, int NoTag>
 no_field field_info(NoClass*, stags::ov_tag<NoTag>) { throw; }
+
+template<typename T>
+struct is_class_info {
+	enum { value = 0 };
+};
+
+template<>
+struct is_class_info < class_info_type > {
+	enum { value = 1 };
+};
+
+template<typename T, int N>
+struct is_id_active {
+	enum { value = is_class_info<BOOST_TYPEOF(field_info((T*)0, ov_tag<N>()))>::value	};
+};
+
+template<int N>
+struct int_type {
+	enum { value = N };
+};
+
+template<int N, typename True, typename False>
+struct mpl_if {};
+
+template<typename True, typename False>
+struct mpl_if < 1, True, False > {
+	typedef True type;
+};
+
+template<typename True, typename False>
+struct mpl_if < 0, True, False > {
+	typedef False type;
+};
+
+template<typename T, int N>
+struct find_id {
+	typedef mpl_if < is_id_active<T, N>::value, typename find_id<T, N + 1>::type, typename int_type<N>::type> type;
+};
+
+template<typename T>
+struct next_available_id {
+	enum { value = find_id<T, 0>::type::value };
+};
+
+#define STAGS_NEXT_ID(type) stags::next_available_id<type>::value
 
 } // stags
