@@ -17,8 +17,17 @@ enum method {
 	method_text,
 };
 
+template<typename C>
+class any_field_info_type;
+
 template<typename T>
-void read_node(pugi::xml_node &node, std::vector<T> &value) {
+std::vector<any_field_info_type<T> > get_field_info();
+
+template<typename T>
+void read_node(pugi::xml_node const &node, T &value);
+
+template<typename T>
+void read_node(pugi::xml_node const &node, std::vector<T> &value) {
 	std::string element_name = class_info<T>().name;
 
 	pugi::xpath_node_set nodes = node.select_nodes(element_name.c_str());
@@ -31,18 +40,18 @@ void read_node(pugi::xml_node &node, std::vector<T> &value) {
 }
 
 template<typename T>
-void read_node(pugi::xml_node &node, T &value) {
-	std::vector<any_field_info_type<T>> fields = get_field_info<T>();
+void read_node(pugi::xml_node const &node, T &value) {
+	std::vector<any_field_info_type<T> > fields = get_field_info<T>();
 
-	for (std::vector<any_field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
+	for (typename std::vector<any_field_info_type<T> >::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 		iter->deserialize_member(value, node);
 }
 
-void read_node(pugi::xml_node &node, std::string &value) {
+void read_node(pugi::xml_node const &node, std::string &value) {
 	value = node.text().as_string();
 }
 
-void read_node(pugi::xml_node &node, unsigned int &value) {
+void read_node(pugi::xml_node const &node, unsigned int &value) {
 	value = node.text().as_uint();
 }
 
@@ -56,9 +65,12 @@ void read_attr(pugi::xml_attribute &attr, unsigned int &value) {
 }
 
 template<typename T>
+void fill_node(pugi::xml_node &node, T const &value);
+
+template<typename T>
 void fill_node(pugi::xml_node &node, std::vector<T> const &value) {
 	std::string element_name = class_info<T>().name;
-	for (std::vector<T>::const_iterator iter = value.begin(), end = value.end(); iter != end; ++iter)
+	for (typename std::vector<T>::const_iterator iter = value.begin(), end = value.end(); iter != end; ++iter)
 	{
 		pugi::xml_node new_node = node.append_child(element_name.c_str());
 		fill_node(new_node, *iter);
@@ -67,9 +79,9 @@ void fill_node(pugi::xml_node &node, std::vector<T> const &value) {
 
 template<typename T>
 void fill_node(pugi::xml_node &node, T const &value) {
-	std::vector<any_field_info_type<T>> fields = get_field_info<T>();
+	std::vector<any_field_info_type<T> > fields = get_field_info<T>();
 
-	for (std::vector<any_field_info_type<T>>::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
+	for (typename std::vector<any_field_info_type<T> >::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
 		iter->serialize_member(value, node);
 }
 
@@ -86,10 +98,6 @@ inline void fill_node(pugi::xml_node &node, int value) {
 }
 
 inline void fill_node(pugi::xml_node &node, bool value) {
-	node.text() = value;
-}
-
-inline void fill_node(pugi::xml_node &node, long value) {
 	node.text() = value;
 }
 
@@ -129,7 +137,7 @@ void serialize_field(pugi::xml_node &node, T const &field, std::string name, met
 }
 
 template<typename T>
-void deserialize_field(pugi::xml_node &parent, T &field, std::string name, method method) {
+void deserialize_field(pugi::xml_node const &parent, T &field, std::string name, method method) {
 	if (method == method_element)
 	{
 		pugi::xml_node node = parent.select_node(name.c_str()).node();
@@ -150,7 +158,7 @@ template<typename C>
 class any_field_info_type {
 	struct iserializer {
 		virtual void serialize_member(C const &object, pugi::xml_node &parent) const = 0;
-		virtual void deserialize_member(C &object, pugi::xml_node &parent) const = 0;
+		virtual void deserialize_member(C &object, pugi::xml_node const &parent) const = 0;
 	};
 
 	template<typename Member, int Tag, int Method>
@@ -163,7 +171,7 @@ class any_field_info_type {
 			serialize_field(parent, object.*field_info.field, field_info.name, (stags::xml::method)Method);
 		}
 
-		void deserialize_member(C &object, pugi::xml_node &parent) const {
+		void deserialize_member(C &object, pugi::xml_node const &parent) const {
 			deserialize_field(parent, object.*field_info.field, field_info.name, (stags::xml::method)Method);
 		}
 	};
@@ -182,15 +190,18 @@ public:
 		serializer->serialize_member(object, parent);
 	}
 
-	void deserialize_member(C &object, pugi::xml_node &parent) const {
+	void deserialize_member(C &object, pugi::xml_node const &parent) const {
 		serializer->deserialize_member(object, parent);
 	}
 };
 
+template<int N, typename T>
+void append_field_maybe(std::vector<any_field_info_type<T> > &fields);
+
 template<typename Tag>
 struct field_aggregator {
 	template<int N, typename T>
-	static void append_next_field(std::vector<any_field_info_type<T>> &fields) {
+	static void append_next_field(std::vector<any_field_info_type<T> > &fields) {
 		typedef T *type;
 		fields.push_back(field_info(type(), overload_choice<N>()));
 		append_field_maybe<N + 1>(fields);
@@ -200,19 +211,19 @@ struct field_aggregator {
 template<>
 struct field_aggregator < no_field > {
 	template<int N, typename T>
-	static void append_next_field(std::vector<any_field_info_type<T>> &fields) {}
+	static void append_next_field(std::vector<any_field_info_type<T> > &fields) {}
 };
 
 template<int N, typename T>
-void append_field_maybe(std::vector<any_field_info_type<T>> &fields) {
+void append_field_maybe(std::vector<any_field_info_type<T> > &fields) {
 	typedef T *type;
 	typedef BOOST_TYPEOF(field_info(type(), overload_choice<N>())) result_type;
-	field_aggregator<result_type>::append_next_field<N>(fields);
+	field_aggregator<result_type>::template append_next_field<N, T>(fields);
 }
 
 template<typename T>
-std::vector<any_field_info_type<T>> get_field_info() {
-	std::vector<any_field_info_type<T>> info;
+std::vector<any_field_info_type<T> > get_field_info() {
+	std::vector<any_field_info_type<T> > info;
 	append_field_maybe<STAGS_NEXT_ID(T) - 1>(info);
 	return info;
 }
