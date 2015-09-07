@@ -153,11 +153,11 @@ class any_field_info_type {
 		virtual void deserialize_member(C &object, pugi::xml_node &parent) const = 0;
 	};
 
-	template<typename Member, int Method>
+	template<typename Member, int Tag, int Method>
 	struct field_serializer : public iserializer {
-		field_info_type<C, Member, Method> field_info;
+		field_info_type<C, Member, Tag, Method> field_info;
 
-		field_serializer(field_info_type<C, Member, Method> const &fi) : field_info(fi) {}
+		field_serializer(field_info_type<C, Member, Tag, Method> const &fi) : field_info(fi) {}
 
 		void serialize_member(C const &object, pugi::xml_node &parent) const {
 			serialize_field(parent, object.*field_info.field, field_info.name, (stags::xml::method)Method);
@@ -173,9 +173,9 @@ class any_field_info_type {
 public:
 	any_field_info_type() : serializer() {}
 
-	template<typename Member, int Method>
-	any_field_info_type(field_info_type<C, Member, Method> const &info) {
-		serializer = new field_serializer<Member, Method>(info);
+	template<typename Member, int Tag, int Method>
+	any_field_info_type(field_info_type<C, Member, Tag, Method> const &info) {
+		serializer = new field_serializer<Member, Tag, Method>(info);
 	}
 
 	void serialize_member(C const &object, pugi::xml_node &parent) const {
@@ -192,7 +192,7 @@ struct field_aggregator {
 	template<int N, typename T>
 	static void append_next_field(std::vector<any_field_info_type<T>> &fields) {
 		typedef T *type;
-		fields.push_back(field_info(type(), ov_tag<N>()));
+		fields.push_back(field_info(type(), overload_choice<N>()));
 		append_field_maybe<N + 1>(fields);
 	}
 };
@@ -206,14 +206,14 @@ struct field_aggregator < no_field > {
 template<int N, typename T>
 void append_field_maybe(std::vector<any_field_info_type<T>> &fields) {
 	typedef T *type;
-	typedef BOOST_TYPEOF(field_info(type(), ov_tag<N>())) result_type;
+	typedef BOOST_TYPEOF(field_info(type(), overload_choice<N>())) result_type;
 	field_aggregator<result_type>::append_next_field<N>(fields);
 }
 
 template<typename T>
 std::vector<any_field_info_type<T>> get_field_info() {
 	std::vector<any_field_info_type<T>> info;
-	append_field_maybe<1>(info);
+	append_field_maybe<STAGS_NEXT_ID(T) - 1>(info);
 	return info;
 }
 
@@ -244,7 +244,7 @@ public:
 #define XML_SERIALIZABLE_NAME(xn, tt, tn) tt tn; namespace stags { class_info_type class_info(tn*){ return class_info_type(xn); } } tt tn : private ::stags::serializable<tn>
 #define XML_SERIALIZABLE(tt, tn) XML_SERIALIZABLE_NAME(#tn, tt, tn)
 
-#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st> field_info(myt_*, ::stags::ov_tag<STAGS_NEXT_ID(myt_)>) { return ::stags::field_info_type<myt_, ct, ::stags::xml::method_##st>(xn, &myt_::cn); }
+#define P_XML_FIELD(xn, ct, cn, st) ct cn; friend ::stags::field_info_type<myt_, ct, STAGS_NEXT_ID(myt_), ::stags::xml::method_##st> field_info(myt_*, ::stags::overload_choice<STAGS_NEXT_ID(myt_)>) { return ::stags::field_info_type<myt_, ct, STAGS_NEXT_ID(myt_), ::stags::xml::method_##st>(xn, &myt_::cn); }
 
 #define XML_ELEMENT_NAME(xn, ct, cn)	P_XML_FIELD(xn, ct, cn, element)
 #define XML_ELEMENT(ct, cn)				P_XML_FIELD(#cn, ct, cn, element)
