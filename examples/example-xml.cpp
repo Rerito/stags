@@ -30,6 +30,7 @@ struct, recipe_book)
 	std::vector<recipe>, recipes);
 };
 
+
 TEST_CASE("Object is XML-serialized", "[stags-xml]") {
 	recipe_book my_own_cakes;
 	my_own_cakes.author = "Vanellope von Schweetz";

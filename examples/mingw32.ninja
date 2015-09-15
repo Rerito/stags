@@ -17,4 +17,5 @@ rule ld
 
 build $builddir/pugixml.o: cxx thirdparty/pugixml/src/pugixml.cpp
 build $builddir/example-xml.o: cxx example-xml.cpp
-build $builddir/test.exe: ld $builddir/pugixml.o $builddir/example-xml.o
+build $builddir/utility.o: cxx utility.cpp
+build $builddir/test.exe: ld $builddir/utility.o $builddir/pugixml.o $builddir/example-xml.o

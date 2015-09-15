@@ -23,8 +23,52 @@ class any_field_info_type;
 template<typename T>
 std::vector<any_field_info_type<T> > get_field_info();
 
+/* PUGIXML Y U DO THIS :'( 
+ * No easy way to convert to a given type with pugixml, so
+ * we just list all the conversions */
+template<typename PugiType>
+struct pugi_converter {
+	template<typename Target>
+	static Target convert_primitive(PugiType const &textish) {
+		return convert_primitive(textish, Target());
+	}
+
+	static bool convert_primitive(PugiType const &textish, bool) {
+		return textish.as_bool();
+	}
+
+	static int convert_primitive(PugiType const &textish, int) {
+		return textish.as_int();
+	}
+
+	static unsigned int convert_primitive(PugiType const &textish, unsigned int) {
+		return textish.as_uint();
+	}
+
+	static float convert_primitive(PugiType const &textish, float) {
+		return textish.as_float();
+	}
+
+	static double convert_primitive(PugiType const &textish, double) {
+		return textish.as_double();
+	}
+
+	static long long convert_primitive(PugiType const &textish, long long) {
+		return textish.as_llong();
+	}
+
+	static unsigned long long convert_primitive(PugiType const &textish, unsigned long long) {
+		return textish.as_ullong();
+	}
+};
+
+template<typename Target, typename PugiType>
+Target pugi_convert_primitive(PugiType const &textish) {
+	return pugi_converter<PugiType>::template convert_primitive<Target>(textish);
+}
+
 template<typename T>
-void read_node(pugi::xml_node const &node, T &value);
+void read_node(pugi::xml_node const &node, T &value, typename enable_if<has_class_info<T>::value, void>::type * = 0);
 
 template<typename T>
 void read_node(pugi::xml_node const &node, std::vector<T> &value) {
@@ -40,7 +84,7 @@ void read_node(pugi::xml_node const &node, std::vector<T> &value) {
 }
 
 template<typename T>
-void read_node(pugi::xml_node const &node, T &value) {
+void read_node(pugi::xml_node const &node, T &value, typename enable_if<has_class_info<T>::value, void>::type *) {
 	std::vector<any_field_info_type<T> > fields = get_field_info<T>();
 
 	for (typename std::vector<any_field_info_type<T> >::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
@@ -51,21 +95,28 @@ void read_node(pugi::xml_node const &node, std::string &value) {
 	value = node.text().as_string();
 }
 
-void read_node(pugi::xml_node const &node, unsigned int &value) {
-	value = node.text().as_uint();
+template<typename T>
+void read_node(pugi::xml_node const &node, T &value, typename enable_if<is_primitive<T>::value, void>::type * = 0) {
+	value = pugi_convert_primitive<T>(node.text());
+}
+
+template<typename T>
+void read_attr(pugi::xml_attribute &attr, T &value, overload_choice<0>, typename enable_if<is_primitive<T>::value, void>::type * = 0) {
+	value = pugi_convert_primitive<T>(attr);
+}
+
+template<typename T>
+void read_attr(pugi::xml_attribute &attr, T &value, overload_choice<1>) {
+	throw;
 }
 
 template<typename T>
 void read_attr(pugi::xml_attribute &attr, T &value) {
-
-}
-
-void read_attr(pugi::xml_attribute &attr, unsigned int &value) {
-	value = attr.as_uint();
+	read_attr(attr, value, select_overload());
 }
 
 template<typename T>
-void fill_node(pugi::xml_node &node, T const &value);
+void fill_node(pugi::xml_node &node, T const &value, typename enable_if<has_class_info<T>::value, void>::type * = 0);
 
 template<typename T>
 void fill_node(pugi::xml_node &node, std::vector<T> const &value) {
@@ -78,7 +129,7 @@ void fill_node(pugi::xml_node &node, std::vector<T> const &value) {
 }
 
 template<typename T>
-void fill_node(pugi::xml_node &node, T const &value) {
+void fill_node(pugi::xml_node &node, T const &value, typename enable_if<has_class_info<T>::value, void>::type *) {
 	std::vector<any_field_info_type<T> > fields = get_field_info<T>();
 
 	for (typename std::vector<any_field_info_type<T> >::const_iterator iter = fields.begin(), end = fields.end(); iter != end; ++iter)
@@ -89,15 +140,8 @@ inline void fill_node(pugi::xml_node &node, std::string const &value) {
 	node.text() = value.c_str();
 }
 
-inline void fill_node(pugi::xml_node &node, unsigned value) {
-	node.text() = value;
-}
-
-inline void fill_node(pugi::xml_node &node, int value) {
-	node.text() = value;
-}
-
-inline void fill_node(pugi::xml_node &node, bool value) {
+template<typename T>
+void fill_node(pugi::xml_node &node, T value, typename enable_if<is_primitive<T>::value, void>::type * = 0) {
 	node.text() = value;
 }
 

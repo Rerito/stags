@@ -3,6 +3,7 @@
   <ItemGroup>
     <ClCompile Include="example-xml.cpp" />
     <ClCompile Include="thirdparty\pugixml\src\pugixml.cpp" />
+    <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="stags">

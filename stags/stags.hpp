@@ -1,8 +1,25 @@
 #pragma once
 
+#include <string>
 #include <boost/typeof/typeof.hpp>
 
 namespace stags {
+
+struct true_type { enum { value = true }; };
+struct false_type { enum { value = false }; };
+
+typedef char yes_sized[1];
+typedef char no_sized[2];
+
+template<int I> struct size_to_bool;
+template<> struct size_to_bool < 1 > : public true_type {};
+template<> struct size_to_bool < 2 > : public false_type {};
+
+template<bool B, class T>
+struct enable_if {};
+
+template<class T>
+struct enable_if<true, T> { typedef T type; };
 
 template<typename MyT>
 struct serializable {
@@ -20,12 +37,14 @@ struct field_info_type {
 	field_info_type(std::string const &n, Member Parent::*f) : name(n), field(f) {}
 };
 
-struct no_class_info {};
+struct no_class_info { static no_sized *has_info(); };
 template<typename NoClass>
 no_class_info class_info(NoClass*) { throw; }
 
 class class_info_type {
 public:
+	static yes_sized *has_info();
+
 	class_info_type(std::string n) : name(n) {}
 	class_info_type(no_class_info) {}
 
@@ -37,6 +56,9 @@ class_info_type class_info() {
 	return class_info(static_cast<T*>(0));
 }
 
+template<typename T>
+struct has_class_info : public size_to_bool<sizeof *class_info(static_cast<T*>(0)).has_info()> {};
+
 enum { max_tag = 100 };
 
 struct no_field {
@@ -44,6 +66,20 @@ struct no_field {
 	tag_type *tag;
 };
 
+template<typename T>
+struct is_primitive : public false_type {};
+
+template<> struct is_primitive<bool> : public true_type{};
+template<> struct is_primitive<unsigned char> : public true_type{};
+template<> struct is_primitive<signed char> : public true_type{};
+template<> struct is_primitive<unsigned int> : public true_type{};
+template<> struct is_primitive<signed int> : public true_type{};
+template<> struct is_primitive<unsigned long> : public true_type{};
+template<> struct is_primitive<signed long> : public true_type{};
+template<> struct is_primitive<unsigned long long> : public true_type{};
+template<> struct is_primitive<signed long long> : public true_type{};
+template<> struct is_primitive<float> : public true_type{};
+template<> struct is_primitive<double > : public true_type{};
 
 template<unsigned I>
 struct overload_choice : overload_choice<I + 1>{};
