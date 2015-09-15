@@ -1,0 +1,20 @@
+builddir = build
+
+cxx = g++
+cxxincludes = -I.. -Ithirdparty/catch/include -Ithirdparty/pugixml/src -IC:\TPL\boost_1_56_0
+cxxflags = -std=c++03 $cxxincludes
+
+ld = g++
+ldlibraries =
+ldflags = $ldlibraries
+
+rule cxx
+  depfile = $out.d
+  command = $cxx -MMD -MF $out.d $cxxflags -c $in -o $out
+
+rule ld
+  command = $ld $in -o $out $ldflags
+
+build $builddir/pugixml.o: cxx thirdparty/pugixml/src/pugixml.cpp
+build $builddir/example-xml.o: cxx example-xml.cpp
+build $builddir/test.exe: ld $builddir/pugixml.o $builddir/example-xml.o

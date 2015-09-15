@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sstream>
 
+#define CATCH_CONFIG_MAIN
+#include <catch.hpp>
+
 XML_SERIALIZABLE(
 struct, recipe)
 {
@@ -27,8 +30,7 @@ struct, recipe_book)
 	std::vector<recipe>, recipes);
 };
 
-int main(int argc, char* argv[])
-{
+TEST_CASE("Object is XML-serialized", "[stags-xml]") {
 	recipe_book my_own_cakes;
 	my_own_cakes.author = "Vanellope von Schweetz";
 	my_own_cakes.edition = 8;
@@ -42,12 +44,9 @@ int main(int argc, char* argv[])
 	stags::xml::xml_serializer<recipe_book, stags::xml::pugi_backend> serializer;
 	serializer.serialize(document, my_own_cakes);
 
-	std::ostringstream oss;
-	document.print(oss);
-
-	std::cout << oss.str() << std::endl;
-
 	recipe_book new_book = serializer.deserialize(document);
 
-	return 0;
+	REQUIRE(new_book.author == my_own_cakes.author);
+	REQUIRE(new_book.edition == my_own_cakes.edition);
+	REQUIRE(new_book.recipes[0].name == my_own_cakes.recipes[0].name);
 }

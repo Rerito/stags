@@ -52,7 +52,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..;thirdparty\pugixml\src</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..;thirdparty\pugixml\src;C:\TPL\boost_1_56_0;thirdparty\catch\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
