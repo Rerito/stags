@@ -105,6 +105,11 @@ void read_attr(pugi::xml_attribute &attr, T &value, overload_choice<0>, typename
 	value = pugi_convert_primitive<T>(attr);
 }
 
+inline
+void read_attr(pugi::xml_attribute &attr, std::string &value, overload_choice<0>) {
+	value = attr.as_string();
+}
+
 template<typename T>
 void read_attr(pugi::xml_attribute &attr, T &value, overload_choice<1>) {
 	throw;
@@ -146,20 +151,22 @@ void fill_node(pugi::xml_node &node, T value, typename enable_if<is_primitive<T>
 }
 
 template<typename T>
-void fill_attr(pugi::xml_attribute &attr, T const &value) {
+void fill_attr(pugi::xml_attribute &attr, T const &value, overload_choice<1>) {
 	throw std::runtime_error("Unsupported serialization");
 }
 
-inline void fill_attr(pugi::xml_attribute &attr, bool value) {
+template<typename T>
+void fill_attr(pugi::xml_attribute &attr, T value, overload_choice<0>, typename enable_if<is_primitive<T>::value, void>::type * = 0) {
 	attr = value;
 }
 
-inline void fill_attr(pugi::xml_attribute &attr, unsigned int value) {
-	attr = value;
-}
-
-inline void fill_attr(pugi::xml_attribute &attr, std::string const& value) {
+inline void fill_attr(pugi::xml_attribute &attr, std::string const& value, overload_choice<0>) {
 	attr = value.c_str();
+}
+
+template<typename T>
+void fill_attr(pugi::xml_attribute &attr, T const &value) {
+	fill_attr(attr, value, select_overload());
 }
 
 template<typename T>
