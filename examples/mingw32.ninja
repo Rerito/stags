@@ -2,7 +2,7 @@ builddir = build
 
 cxx = g++
 cxxincludes = -I.. -Ithirdparty/catch/include -Ithirdparty/pugixml/src -IC:\TPL\boost_1_56_0
-cxxflags = -std=c++03 $cxxincludes
+cxxflags = -std=c++03 $cxxincludes -DPUGIXML_HAS_LONG_LONG
 
 ld = g++
 ldlibraries =

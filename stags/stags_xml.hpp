@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 #include "pugixml.hpp"
 
 #include <stags/stags.hpp>
