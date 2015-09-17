@@ -82,3 +82,34 @@ TEST_CASE("Attributes are serialized", "[stags-xml]") {
 	REQUIRE(test_struct.int_attr == new_test_struct.int_attr);
 	REQUIRE(test_struct.ull_attr == new_test_struct.ull_attr);
 }
+
+XML_SERIALIZABLE(
+struct, element_test_struct) 
+{
+	XML_ELEMENT(
+	std::string, str_elem);
+	XML_ELEMENT(
+	int, int_elem);
+	XML_ELEMENT(
+	bool, bool_elem);
+	XML_ELEMENT(
+	unsigned long long, ull_elem);
+};
+
+TEST_CASE("Simple elements are serialized", "[stags-xml]") {
+	pugi::xml_document document;
+	stags::xml::xml_serializer<element_test_struct, stags::xml::pugi_backend> serializer;
+	element_test_struct test_struct;
+	test_struct.bool_elem = true;
+	test_struct.int_elem = -7;
+	test_struct.str_elem = "hello";
+	test_struct.ull_elem = 743560972354792;
+
+	serializer.serialize(document, test_struct);
+	element_test_struct new_test_struct = serializer.deserialize(document);
+
+	REQUIRE(test_struct.str_elem == new_test_struct.str_elem);
+	REQUIRE(test_struct.bool_elem == new_test_struct.bool_elem);
+	REQUIRE(test_struct.int_elem == new_test_struct.int_elem);
+	REQUIRE(test_struct.ull_elem == new_test_struct.ull_elem);
+}
