@@ -5,6 +5,8 @@
 
 namespace stags {
 
+struct stag {};
+
 struct true_type { enum { value = true }; };
 struct false_type { enum { value = false }; };
 
@@ -33,6 +35,8 @@ struct field_info_type {
 
 	typedef char tag_type[Tag];
 	tag_type *tag;
+
+	typedef Member member_type;
 
 	field_info_type(std::string const &n, Member Parent::*f) : name(n), field(f) {}
 };
@@ -80,6 +84,12 @@ template<> struct is_primitive<unsigned long long> : public true_type{};
 template<> struct is_primitive<signed long long> : public true_type{};
 template<> struct is_primitive<float> : public true_type{};
 template<> struct is_primitive<double > : public true_type{};
+
+template<typename T>
+struct is_tostring : public is_primitive <T> {};
+
+template<>
+struct is_tostring<std::string> : public true_type{};
 
 template<unsigned I>
 struct overload_choice : overload_choice<I + 1>{};
