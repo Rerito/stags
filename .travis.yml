@@ -9,5 +9,5 @@ addons:
 
 script:
  - git submodule init
- - cd tests && ninja && build/test.exe
+ - cd tests && ninja && build/g++/test.exe
 

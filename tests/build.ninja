@@ -1,4 +1,4 @@
-builddir = build
+builddir = build/g++
 
 cxx = g++
 cxxincludes = -I.. -Ithirdparty/catch/include -Ithirdparty/pugixml/src -IC:\TPL\boost_1_56_0
