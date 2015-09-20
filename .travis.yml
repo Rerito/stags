@@ -9,5 +9,5 @@ addons:
 
 script:
  - git submodule init
- - cd tests && ninja -f mingw32.ninja && build/test.exe
+ - cd tests && ninja && build/test.exe
 

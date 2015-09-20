@@ -4,7 +4,6 @@
 #include <iostream>
 #include <sstream>
 
-#define CATCH_CONFIG_MAIN
 #include <catch.hpp>
 
 XML_SERIALIZABLE(
