@@ -1,6 +1,6 @@
-[submodule "examples/thirdparty/pugixml"]
-	path = examples/thirdparty/pugixml
+[submodule "tests/thirdparty/pugixml"]
+	path = tests/thirdparty/pugixml
 	url = https://github.com/zeux/pugixml.git
-[submodule "examples/thirdparty/catch"]
-	path = examples/thirdparty/catch
+[submodule "tests/thirdparty/catch"]
+	path = tests/thirdparty/catch
 	url = https://github.com/philsquared/Catch.git
