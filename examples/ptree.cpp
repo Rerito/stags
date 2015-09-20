@@ -47,3 +47,18 @@ TEST_CASE("Read into a property tree", "[ptree-rw]") {
 	REQUIRE(ptree.values["addons.apt.packages[0]"] == "libboost-dev");
 	REQUIRE(ptree.values["sudo"] == "0");
 }
+
+TEST_CASE("Write from a property tree", "[ptree-rw]") {
+	using namespace stags::ptree;
+
+	property_tree<travis_config> ptree;
+	ptree.values["addons.apt.packages[0]"] = "libboost-dev";
+	ptree.values["sudo"] = "0";
+
+	travis_config my_config;
+	my_config.addons.apt.packages.resize(1);
+	ptree.write(my_config);
+
+	REQUIRE(my_config.addons.apt.packages[0] == "libboost-dev");
+	REQUIRE(my_config.sudo == false);
+}

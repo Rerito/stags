@@ -40,50 +40,96 @@ std::string to_string(T const &obj, stag) {
 }
 
 template<typename T>
+T to_value(std::string const &str) {
+	std::istringstream iss(str);
+	T obj = T();
+	iss >> obj;
+	return obj;
+}
+
+template<typename T, typename P>
 struct inspector;
 
-template<typename T, int N>
+template<typename T, typename P, int N>
 struct inspector_rec {
-	static void cont(std::map<std::string, std::string> &values, std::string const &path, T const &obj) {
-		inspector<T>::template read_fields_rec<N - 1>(values, path, obj);
+	static void cont(P const &process, T &obj) {
+		inspector<T, P>::template read_fields_rec<N - 1>(process, obj);
 	}
 };
 
-template<typename T>
-struct inspector_rec <T, 0> {
-	static void cont(std::map<std::string, std::string> &values, std::string const &path, T const &obj) { }
+template<typename T, typename P>
+struct inspector_rec <T, P, 0> {
+	static void cont(P const &process, T &obj) { }
 };
 
-template<typename T>
+template<typename T, typename P>
 struct inspector {
 	
 	template<int N>
-	static void read_fields_rec(std::map<std::string, std::string> &values, std::string const &path, T const &obj) {
+	static void read_fields_rec(P const &process, T &obj) {
 		typename get_type<T>::template get_field<N>::result_type info = typename get_type<T>::template get_field<N>()();
-		dispatch(values, path + info.name, obj.*(info.field));
-		inspector_rec<T, N>::cont(values, path, obj);
+		dispatch(process.sublevel(info.name), obj.*(info.field));
+		inspector_rec<T, P, N>::cont(process, obj);
 	}
 
 	template<typename S>
-	static void dispatch(std::map<std::string, std::string> &values, std::string const &path, S const & value, typename enable_if<is_tostring<S>::value, void>::type * = 0) {
-		values[path] = to_string(value, stag());
+	static void dispatch(P const &process, S & value, typename enable_if<is_tostring<S>::value, void>::type * = 0) {
+		process.call(value);
 	}
 
 	template<typename S>
-	static void dispatch(std::map<std::string, std::string> &values, std::string const &path, S const & value, typename enable_if<has_class_info<S>::value, void>::type * = 0) {
-		std::string new_path = path + ".";
-		inspector<S>::template read_fields_rec<get_type<T>::field_count>(values, new_path, value);
+	static void dispatch(P const &process, S & value, typename enable_if<has_class_info<S>::value, void>::type * = 0) {
+		inspector<S, P>::template read_fields_rec<get_type<T>::field_count>(process, value);
 	}
 
 	template<typename U>
-	static void dispatch(std::map<std::string, std::string> &values, std::string const &path, std::vector<U> const &value) {
+	static void dispatch(P const & process, std::vector<U> &value) {
 		unsigned int counter = 0;
-		for (typename std::vector<U>::const_iterator it = value.begin(), end = value.end(); it != end; ++it)
-		{
-			std::ostringstream subpath_builder;
-			subpath_builder << path << "[" << counter++ << "]";
-			inspector<U>::dispatch(values, subpath_builder.str(), *it);
-		}
+		for (typename std::vector<U>::iterator it = value.begin(), end = value.end(); it != end; ++it)			
+			inspector<U, P>::dispatch(process.at(counter), *it);
+	}
+};
+
+template<typename AT>
+struct navigator {
+	std::string path;
+
+	AT clone_append(std::string const & frag) const {
+		AT subprocess(*(AT*)this);
+		subprocess.path += frag;
+		return subprocess;
+	}
+
+	AT sublevel(std::string const &component) const {
+		return clone_append((path.empty() ? "" : ".") + component);
+	}
+
+	AT at(int index) const {
+		std::ostringstream subpath_builder;
+		subpath_builder << "[" << index << "]";
+		return clone_append(subpath_builder.str());
+	}
+};
+
+struct ptree_writer : public navigator<ptree_writer> {
+	std::map<std::string, std::string> &values;
+	
+	ptree_writer(std::map<std::string, std::string> &v) : values(v) {}
+
+	template<typename T>
+	void call(T const &value) const {
+		values[path] = to_string(value, stag());
+	}
+};
+
+struct ptree_reader : public navigator<ptree_reader> {
+	std::map<std::string, std::string> &values;
+
+	ptree_reader(std::map<std::string, std::string> &v) : values(v) {}
+
+	template<typename T>
+	void call(T &value) const {
+		value = to_value<T>(values[path]);
 	}
 };
 
@@ -92,7 +138,13 @@ struct property_tree {
 	std::map<std::string, std::string> values;
 
 	void read(T const &obj) {
-		inspector<T>::template read_fields_rec<get_type<T>::field_count>(values, "", obj);
+		ptree_writer process(values);
+		inspector<T, ptree_writer>::template read_fields_rec<get_type<T>::field_count>(process, const_cast<T &>(obj));
+	}
+
+	void write(T &obj) {
+		ptree_reader process(values);
+		inspector<T, ptree_reader>::template read_fields_rec<get_type<T>::field_count>(process, obj);
 	}
 };
 
